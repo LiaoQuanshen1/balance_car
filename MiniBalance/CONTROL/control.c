@@ -9,6 +9,7 @@ short Accel_Y,Accel_Z,Accel_X,Accel_Angle_x,Accel_Angle_y,Gyro_X,Gyro_Z,Gyro_Y;
 #define AVOID_TURN_MAX_MS  50           // 单次转弯超时（500ms）兜底
 #define AVOID_FWD1_MM       30          // 前行1里程（mm，原100ms@300mm/s）
 #define AVOID_FWD2_MM      (AVOID_TRIG_DIST*0.8)          // 前行2里程（mm，须大于障碍长度+余量）
+#define AVOID_FWD3_MIN_MM   100        // 前行3最小检测距离（mm）：至少走这么远才允许回线检测
 #define AVOID_FWD3_MAX_MM  (AVOID_FWD1_MM*10)          // 前行3找线最大里程（mm）兜底
 #define AVOID_FWD_SPEED_MM  100        // 绕障直行速度（mm/s，可调；独立于遥控/跟随的 Target_Velocity）
 // ===== 特殊路况（8字轨道）定时转弯后的速度积分缩放（队友：防止转弯后猛冲）=====
@@ -453,9 +454,9 @@ void Avoid_State_Machine(void)
 			if(avoid_mm >= AVOID_FWD2_MM)
 			{ avoid_state=AVOID_TURN_L2; avoid_angle=0; avoid_timer=0; avoid_mm=0; }
 			break;
-		case AVOID_FWD3:                                 // 前行直到找到线（或里程兜底）
+		case AVOID_FWD3:                                 // 前行直到找到线（先走够最小距离，中间两路DH2/DH3同时亮(黑=0)才回线；或里程兜底）
 			avoid_mm += (Velocity_Left + Velocity_Right) * 0.005f;
-			if(IRDM_Line_Seen() || avoid_mm >= AVOID_FWD3_MAX_MM)
+			if((avoid_mm >= AVOID_FWD3_MIN_MM && DH2==0 && DH3==0) || avoid_mm >= AVOID_FWD3_MAX_MM)
 			{ avoid_state=AVOID_TURN_R2; avoid_angle=0; avoid_timer=0; avoid_mm=0; }
 			break;
 	}
