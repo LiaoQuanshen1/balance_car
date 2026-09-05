@@ -2,13 +2,13 @@
 #include "control.h"
 // ===== ¿Éµ÷²ÎÊıÇøÓò =====
 // ×ªÏò½Ç¶È²ÎÊı
-float Turn90Angle  = 80;   // Ö±½ÇÍä×ªÏò²ÎÊı
-float TurnMaxAngle = 65;   // ´óÍäµÀ×ªÏò²ÎÊı
+float Turn90Angle  = 90;   // Ö±½ÇÍä×ªÏò²ÎÊı
+float TurnMaxAngle = 75;   // ´óÍäµÀ×ªÏò²ÎÊı
 float TurnMidAngle = 40;   // ÖĞµÈ×ªÏò²ÎÊı£¨¶ªÏßÊ±Ê¹ÓÃ£©
-float TurnMinAngle = 15;   // Î¢µ÷×ªÏò²ÎÊı
+float TurnMinAngle = 30;   // Î¢µ÷×ªÏò²ÎÊı
 // ËÙ¶È²ÎÊı
-float BaseSpeed = 300;      // »ù´¡Ñ²ÏßËÙ¶È£¨Ö±ĞĞÊ±µÄËÙ¶È£©
-float ForwardLimit = 400;		//Ç°ĞĞÏŞÖÆ(×ªÏò´óÓÚ¸ÃÖµÏŞÖÆÆäÇ°½ø)
+float BaseSpeed = 500;      // »ù´¡Ñ²ÏßËÙ¶È£¨Ö±ĞĞÊ±µÄËÙ¶È£©
+float ForwardLimit = 600;		//Ç°ĞĞÏŞÖÆ(×ªÏò´óÓÚ¸ÃÖµÏŞÖÆÆäÇ°½ø)
 // ===== ´«¸ĞÆ÷×´Ì¬¶¨Òå--Ê¶±ğµ½ºÚÏßÊ±Îª1 =====
 typedef enum {
     STATE_END         = 0,    // 0000 - Ê®×ÖÂ·¿Ú
@@ -35,6 +35,7 @@ float turn_diff = 0;    // ×ªÏò²îËÙ
 #define TIMED_TURN_TICKS 18u  /* ¿Éµ÷£ºÃ¿¸ö¼ÆÊıÖÜÆÚÎª10 ms */
 #define EIGHT_TRACK_ENABLE 0u /* ¾ºËÙ·ÖÖ§¿ª¹Ø£º0=½ûÓÃ8×ÖÌØÊâÂ·¿ö×´Ì¬»ú(ÌØÊâ×´Ì¬Ö»Ê¶±ğÍ£³µÁ½È¦)£¬1=ÆôÓÃ8×Ö¹ìµÀ¶¯×÷ */
 #define SPECIAL_LOCK_TICKS 100u /* ÌØÊâ×´Ì¬ÇĞ»»ºóµÄÌØÕ÷Ê¶±ğÆÁ±ÎÆÚ(1tick=10ms,¿Éµ÷) */
+#define FINISH_LAPS 5u          /* ¾­¹ıÖÕµã´ÎÊı´ïµ½¸ÃÖµ²ÅÍ£³µ£¨¾ºËÙÈ¦Êı£¬¿Éµ÷£© */
 
 EightTrackState_t eight_track_state = EIGHT_TRACK_IDLE;
 #if EIGHT_TRACK_ENABLE
@@ -44,7 +45,7 @@ static u16 special_lock_timer = 0;      /* >0=ÆÁ±ÎÆÚ£º¼ä¸ôÊ±¼äÄÚ²»Ê¶±ğ/²¶»ñÆäËûÌ
 #if EIGHT_TRACK_ENABLE
 static u8 eight_track_segment_flag = 0; /* 0=Î´Ö´ĞĞ£¬1=µÚÒ»¶ÎÍê³É£¬2=Á½¶ÎÍê³É */
 #endif
-static u8 lap_count = 0;                /* ÒÑÊ¶±ğÖÕµãÈ¦Êı£º0=µÚÒ»È¦,1=µÚ¶şÈ¦(ÖÕµã²ÅÍ£³µ) */
+static u8 lap_count = 0;                /* ÒÑÊ¶±ğÖÕµã´ÎÊı£º´ïµ½ FINISH_LAPS ²ÅÍ£³µ */
 
 // ===== Ñ²Ïß¹¦ÄÜº¯Êı£¨Êä³öÁ½µç»úÄ¿±êËÙ¶È£© =====
 void IRDM_line_inspection(void)
@@ -147,19 +148,19 @@ void IRDM_line_inspection(void)
         // ===== ×´Ì¬ÅĞ¶Ï£ºÉèÖÃ×ªÏò²îËÙ =====
     switch (sensor_state)
     {
-       case STATE_END:// ÖÕµãÊ¶±ğ£ºµÚÒ»È¦²»Í£³µ²¢ÖØÖÃ8×Ö×´Ì¬»ú£¬µÚ¶şÈ¦Í£³µ
+       case STATE_END:// ÖÕµãÊ¶±ğ£ºÇ°4´Î¾­¹ı²»Í£³µ²¢ÖØÖÃ8×Ö×´Ì¬»ú£¬µÚ5´ÎÍ£³µ
 			turn_diff = 0;
 			if(eight_track_state == EIGHT_TRACK_IDLE && timed_turn_diff == 0 && special_lock_timer == 0)
 			{
 				if(prev_sensor_end == 0)			// ½øÈë0000µÄ±ßÑØ²ÅÅĞ£¬¿íÖÕµãÏßÖ»ËãÒ»´Î
 				{
-					if(lap_count == 0)			// µÚÒ»È¦£º²»Í£³µ£¬ÖØÖÃ8×Ö×´Ì¬»ú¼ÌĞøÅÜµÚ¶şÈ¦
+					if(lap_count < FINISH_LAPS-1)	// Ç°4´Î¾­¹ıÖÕµã£º²»Í£³µ£¬ÖØÖÃ8×Ö×´Ì¬»ú¼ÌĞøÅÜ
 					{
-						lap_count = 1;
+						lap_count++;
 						EightTrack_Reset();
 						special_lock_timer = SPECIAL_LOCK_TICKS;	// ÆÁ±ÎÍ¬Ò»ÖÕµãÏßµÄ²ĞÁô¶àÅÄ
 					}
-					else Mode = Normal_Mode;			    // µÚ¶şÈ¦ÖÕµã£ºÍ£³µ
+					else Mode = Normal_Mode;			    // µÚ5´Î¾­¹ıÖÕµã£ºÍ£³µ
 				}
 			}
             break;
@@ -173,21 +174,21 @@ void IRDM_line_inspection(void)
             turn_diff = 0;
             break;
         case STATE_DIAG_RIGHT: // DH1+DH3 ¶Ô½ÇÆ«ÓÒ
-            turn_diff = -TurnMinAngle;
+            turn_diff = -TurnMidAngle;
             break;
         case STATE_LEFT_90_A: // ×óÖ±½ÇÍä
 		case STATE_LEFT_90_B: // ×óÖ±½ÇÍä
-            turn_diff = TurnMinAngle;
+            turn_diff = Turn90Angle;
             break;
         case STATE_RIGHT_90_A: // ÓÒÖ±½ÇÍä
 		case STATE_RIGHT_90_B: // ÓÒÖ±½ÇÍä
-            turn_diff = -TurnMinAngle;
+            turn_diff = -Turn90Angle;
             break;
         case STATE_LEFT_BIG://×ó´óÍä
-            turn_diff = TurnMinAngle;
+            turn_diff = TurnMaxAngle;
             break;
         case STATE_RIGHT_BIG://ÓÒ´óÍä
-            turn_diff = -TurnMinAngle;
+            turn_diff = -TurnMaxAngle;
             break;
         case STATE_LEFT_SMALL://×óÎ¢µ÷
             turn_diff = TurnMinAngle;
